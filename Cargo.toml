@@ -1,0 +1,8 @@
+[package]
+
+name = "rust-composer-check"
+version = "0.0.1"
+authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
+
+[dependencies.semver]
+git = "https://github.com/rust-lang/semver"
