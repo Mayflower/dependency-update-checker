@@ -5,4 +5,10 @@ version = "0.0.1"
 authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
 
 [dependencies.semver]
-git = "https://github.com/rust-lang/semver"
+path = "../semver"
+
+[dependencies.http]
+git = "https://github.com/chris-morgan/rust-http"
+
+[dependencies.url]
+git = "https://github.com/servo/rust-url"
