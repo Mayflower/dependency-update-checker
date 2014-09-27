@@ -41,8 +41,8 @@ impl Dependency {
             Some((ref name, ref version)) => {
                 match VersionReq::parse(version.as_slice()) {
                     Ok(vr) => Some(Dependency { name: name.clone(), version: vr }),
-                    _ => {
-                        println!("{} ignored (could not parse {})", name, version);
+                    Err(err) => {
+                        println!("{} ignored (could not parse {}: {})", name, version, err);
                         None
                     }
                 }
@@ -87,7 +87,13 @@ impl Dependency {
 
 fn main() {
     let args                   = os::args();
-    let file_raw_bytes         = File::open(&Path::new(args[1].as_slice())).read_to_end().unwrap();
+    let file_raw_bytes         = match File::open(&Path::new(args[1].as_slice())).read_to_end() {
+        Ok(bytes) => bytes,
+        Err(err)  => {
+            println!("{}", err);
+            return;
+        }
+    };
     let composer_json_contents = str::from_utf8(file_raw_bytes.as_slice()).unwrap();
     let composer_json          = json::from_str(composer_json_contents).unwrap();
     let dependencies_to_check  = Dependency::to_check_from_json(composer_json);
