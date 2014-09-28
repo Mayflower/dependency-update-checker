@@ -54,8 +54,9 @@ impl ComposerDependency {
 impl Dependency for ComposerDependency {
     fn to_check(composer_json_contents: &str) -> Vec<ComposerDependency> {
         let composer_json = json::from_str(composer_json_contents).unwrap();
-        let default_map   = TreeMap::new();
-        let requires      = composer_json.find(&"require".to_string()).map(
+        let default_map = TreeMap::new();
+
+        let requires = composer_json.find(&"require".to_string()).map(
             |r| r.as_object().unwrap()
         ).unwrap_or(&default_map);
         let require_devs = composer_json.find(&"require-dev".to_string()).map(
