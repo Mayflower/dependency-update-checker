@@ -1,16 +1,19 @@
-use serialize::json::{mod, Json};
+use std::cmp::max;
+use std::collections::TreeMap;
+
 use http::client::RequestWriter;
 use http::method::Get;
+use puppetfile::Puppetfile;
+use puppetfile::Module as PuppetModule;
 use semver::{Version, VersionReq};
-use std::collections::TreeMap;
+use serialize::json::{mod, Json};
 use url::Url;
-use std::cmp::max;
 
 
 pub trait Dependency : Clone + Send {
     fn to_check(dependency_file_contents: &str) -> Vec<Self>;
     fn name(&self) -> &String;
-    fn version_req(&self) -> &VersionReq;
+    fn version_req(&self) -> Option<&VersionReq>;
     fn registry_version(&self) -> Option<Version>;
     fn clone_dep(&self) -> Box<Dependency + Send> {
         box self.clone() as Box<Dependency + Send>
@@ -32,9 +35,9 @@ impl ComposerDependency {
         json.find_path(&[&"package".to_string(), &"versions".to_string()])
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
-                versions_map.keys().map(
-                    |version_string| Version::parse(version_string.as_slice()).ok()
-                ).fold(None, |a, b| {
+                versions_map.keys().map(|version_string| {
+                    Version::parse(version_string.as_slice().trim_left_chars('v')).ok()
+                }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
                         (a@Some(_), None) => a,
@@ -67,12 +70,12 @@ impl Dependency for ComposerDependency {
             |(k, v)| {
                 match v {
                     &json::String(ref version) => Some((k.clone(), version.clone())),
-                    _                          => None
+                    _ => None
                 }
             }
         ).filter_map(|opt| match opt {
             Some((ref name, ref version)) => {
-                match VersionReq::parse(version.as_slice()) {
+                match VersionReq::parse(version.as_slice().trim_left_chars('v')) {
                     Ok(vr) => Some(ComposerDependency { name: name.clone(), version_req: vr }),
                     Err(err) => {
                         println!("{} ignored (could not parse {}: {})", name, version, err);
@@ -88,8 +91,8 @@ impl Dependency for ComposerDependency {
         &self.name
     }
 
-    fn version_req(&self) -> &VersionReq {
-        &self.version_req
+    fn version_req(&self) -> Option<&VersionReq> {
+        Some(&self.version_req)
     }
 
     fn registry_version(&self) -> Option<Version> {
@@ -102,6 +105,51 @@ impl Dependency for ComposerDependency {
         match json::from_str(response_string.as_slice()) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
             Err(_)             => None
+        }
+    }
+}
+
+#[deriving(Clone, Show)]
+pub struct PuppetDependency {
+    module: PuppetModule,
+    forge_url: String,
+}
+impl Dependency for PuppetDependency {
+    fn to_check(puppetfile_contents: &str) -> Vec<PuppetDependency> {
+        match Puppetfile::parse(puppetfile_contents) {
+            Ok(puppetfile) => {
+                let forge_url = puppetfile.forge.clone();
+                puppetfile.modules.into_iter()
+                    .filter(|module| module.version().is_some())
+                    .map(|module|
+                        PuppetDependency {
+                            module: module,
+                            forge_url: forge_url.clone(),
+                        }
+                    ).collect()
+            },
+            Err(err) => {
+                println!("Couldn't parse Puppetfile: {}", err);
+                vec![]
+            }
+        }
+    }
+
+    fn name(&self) -> &String {
+        &self.module.name
+    }
+
+    fn version_req(&self) -> Option<&VersionReq> {
+        self.module.version()
+    }
+
+    fn registry_version(&self) -> Option<Version> {
+        match self.module.forge_version(&self.forge_url) {
+            Ok(version) => Some(version),
+            Err(err) => {
+                println!("{} ignored ({})", self.name(), err);
+                None
+            }
         }
     }
 }
