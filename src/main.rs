@@ -8,7 +8,7 @@ use std::os;
 use std::str;
 use std::io::File;
 use std::sync::Future;
-use dependency::{ComposerDependency, Dependency, PuppetDependency};
+use dependency::{BowerDependency, ComposerDependency, Dependency, NpmDependency, PuppetDependency};
 use semver::Version;
 
 mod dependency;
@@ -59,7 +59,22 @@ fn main() {
                 |d| d.to_dependency_box()
             ).collect()
         }
-        _ => vec![]
+        Some(name) if name == "package.json".as_bytes() => {
+            let npm_dependencies_to_check: Vec<NpmDependency> = Dependency::to_check(dependency_file_contents);
+            npm_dependencies_to_check.into_iter().map(
+                |d| d.to_dependency_box()
+            ).collect()
+        }
+//        Some(name) if name == "bower.json".as_bytes() => {
+//            let puppet_dependencies_to_check: Vec<BowerDependency> = Dependency::to_check(dependency_file_contents);
+//            puppet_dependencies_to_check.into_iter().map(
+//                |d| d.to_dependency_box()
+//            ).collect()
+//        }
+        _ => {
+            println!("File type not recognized")
+            return
+        }
     };
     let published_versions = get_published_versions(&dependencies_to_check);
 

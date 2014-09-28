@@ -1,9 +1,13 @@
 use semver::{Version, VersionReq};
 
+pub use self::bower::BowerDependency;
 pub use self::composer::ComposerDependency;
+pub use self::npm::NpmDependency;
 pub use self::puppet::PuppetDependency;
 
+mod bower;
 mod composer;
+mod npm;
 mod puppet;
 
 pub trait Dependency : Clone + Send {
