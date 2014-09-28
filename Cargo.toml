@@ -1,6 +1,6 @@
 [package]
 
-name = "rust-composer-check"
+name = "dependency-update-checker"
 version = "0.0.1"
 authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
 
@@ -14,4 +14,4 @@ git = "https://github.com/chris-morgan/rust-http"
 git = "https://github.com/servo/rust-url"
 
 [dependencies.puppetfile]
-path = "../rust-puppetfile"
+git = "https://github.com/mayflower/rust-puppetfile"
