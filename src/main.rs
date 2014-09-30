@@ -2,6 +2,7 @@ extern crate http;
 extern crate puppetfile;
 extern crate semver;
 extern crate serialize;
+extern crate term;
 extern crate url;
 
 use std::os;
@@ -35,6 +36,8 @@ fn get_published_versions(dependencies_to_check: &Vec<Box<Dependency>>)
 }
 
 fn main() {
+    let mut t = term::stdout().unwrap();
+
     let args = os::args();
     let path = &Path::new(args[1].as_slice());
     let file_raw_bytes = match File::open(path).read_to_end() {
@@ -78,15 +81,36 @@ fn main() {
     };
     let published_versions = get_published_versions(&dependencies_to_check);
 
-    for dependency in dependencies_to_check.iter() {
-        for &(ref name, ref version) in published_versions.iter() {
-            if dependency.name() == name {
-                if dependency.version_req().is_none() || !dependency.version_req().unwrap().matches(version) {
-                    println!("{}: {} doesn't match {}", dependency.name(), version, dependency.version_req())
-                } else {
-                    println!("{}: {} matches {}", dependency.name(), version, dependency.version_req())
-                }
-            }
-        }
+    let mut outdated_dependencies = dependencies_to_check.iter()
+        .filter(|d| d.version_req().is_some())
+        .filter_map(|d| match published_versions.iter().find(|&&(ref name, _)| d.name() == name) {
+            Some(&(_, ref version)) if !d.version_req().unwrap().matches(version) => Some((d, version)),
+            _ => None
+        })
+        .collect::<Vec<(&Box<Dependency>, &Version)>>();
+
+    let mut up_to_date_dependencies = dependencies_to_check.iter()
+        .filter(|d| d.version_req().is_some())
+        .filter_map(|d| match published_versions.iter().find(|&&(ref name, _)| d.name() == name) {
+            Some(&(_, ref version)) if d.version_req().unwrap().matches(version) => Some((d, version)),
+            _ => None
+        })
+        .collect::<Vec<(&Box<Dependency>, &Version)>>();
+
+    outdated_dependencies.sort_by(|&(ref d1, _), &(ref d2, _)| d1.name().cmp(d2.name()));
+    up_to_date_dependencies.sort_by(|&(ref d1, _), &(ref d2, _)| d1.name().cmp(d2.name()));
+
+    println!("");
+
+    t.fg(term::color::GREEN).unwrap();
+    for &(dependency, version) in up_to_date_dependencies.iter() {
+        (writeln!(t, "{}: {} matches {}", dependency.name(), version, dependency.version_req())).unwrap();
+    }
+
+    println!("");
+
+    t.fg(term::color::RED).unwrap();
+    for &(dependency, version) in outdated_dependencies.iter() {
+        (writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req())).unwrap();
     }
 }

@@ -94,5 +94,3 @@ impl Dependency for ComposerDependency {
         }
     }
 }
-
-

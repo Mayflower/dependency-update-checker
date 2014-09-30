@@ -89,5 +89,3 @@ impl Dependency for NpmDependency {
         }
     }
 }
-
-
