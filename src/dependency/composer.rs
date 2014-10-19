@@ -22,7 +22,7 @@ impl ComposerDependency {
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
-                    Version::parse(version_string.as_slice().trim_left_chars('v')).ok()
+                    Version::parse(version_string[].trim_left_chars('v')).ok()
                 }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
@@ -35,7 +35,7 @@ impl ComposerDependency {
 
     fn packagist_url(&self) -> Url {
         Url::parse(
-            format!("https://packagist.org/packages/{}.json", self.name).as_slice()
+            format!("https://packagist.org/packages/{}.json", self.name)[]
         ).unwrap()
     }
 }
@@ -61,7 +61,7 @@ impl Dependency for ComposerDependency {
             }
         ).filter_map(|opt| match opt {
             Some((ref name, ref version)) => {
-                match VersionReq::parse(version.as_slice().trim_left_chars('v')) {
+                match VersionReq::parse(version[].trim_left_chars('v')) {
                     Ok(vr) => Some(ComposerDependency { name: name.clone(), version_req: vr }),
                     Err(err) => {
                         println!("{} ignored (could not parse {}: {})", name, version, err);
@@ -88,7 +88,7 @@ impl Dependency for ComposerDependency {
             Err((_request, error)) => fail!(":-( {}", error),
         };
         let response_string = response.read_to_string().unwrap();
-        match json::from_str(response_string.as_slice()) {
+        match json::from_str(response_string[]) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
             Err(_)             => None
         }

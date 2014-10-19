@@ -1,3 +1,5 @@
+#![feature(slicing_syntax)]
+
 extern crate http;
 extern crate puppetfile;
 extern crate semver;
@@ -39,7 +41,7 @@ fn main() {
     let mut t = term::stdout().unwrap();
 
     let args = os::args();
-    let path = &Path::new(args[1].as_slice());
+    let path = &Path::new(args[1][]);
     let file_raw_bytes = match File::open(path).read_to_end() {
         Ok(bytes) => bytes,
         Err(err)  => {
@@ -47,7 +49,7 @@ fn main() {
             return;
         }
     };
-    let dependency_file_contents = str::from_utf8(file_raw_bytes.as_slice()).unwrap();
+    let dependency_file_contents = str::from_utf8(file_raw_bytes[]).unwrap();
 
     let dependencies_to_check: Vec<Box<Dependency>> = match path.filename() {
         Some(name) if name == "composer.json".as_bytes() => {
@@ -104,13 +106,13 @@ fn main() {
 
     t.fg(term::color::GREEN).unwrap();
     for &(dependency, version) in up_to_date_dependencies.iter() {
-        (writeln!(t, "{}: {} matches {}", dependency.name(), version, dependency.version_req())).unwrap();
+        (writeln!(t, "{}: {} matches {}", dependency.name(), version, dependency.version_req().unwrap())).unwrap();
     }
 
     println!("");
 
     t.fg(term::color::RED).unwrap();
     for &(dependency, version) in outdated_dependencies.iter() {
-        (writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req())).unwrap();
+        (writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req().unwrap())).unwrap();
     }
 }

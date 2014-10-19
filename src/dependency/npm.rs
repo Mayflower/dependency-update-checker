@@ -29,7 +29,7 @@ impl NpmDependency {
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
-                    Version::parse(version_string.as_slice().trim_left_chars('v')).ok()
+                    Version::parse(version_string[].trim_left_chars('v')).ok()
                 }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
@@ -42,7 +42,7 @@ impl NpmDependency {
 
     fn npm_url(&self) -> Url {
         Url::parse(
-            format!("https://registry.npmjs.org/{}", self.name).as_slice()
+            format!("https://registry.npmjs.org/{}", self.name)[]
         ).unwrap()
     }
 }
@@ -58,7 +58,7 @@ impl Dependency for NpmDependency {
         let require_devs = package_json.devDependencies.clone().unwrap_or(TreeMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
-            match VersionReq::parse(version.as_slice().trim_left_chars('v')) {
+            match VersionReq::parse(version[].trim_left_chars('v')) {
                 Ok(vr) => Some(NpmDependency { name: name.clone(), version_req: vr }),
                 Err(err) => {
                     println!("{} ignored (could not parse {}: {})", name, version, err);
@@ -83,7 +83,7 @@ impl Dependency for NpmDependency {
             Err((_request, error)) => fail!(":-( {}", error),
         };
         let response_string = response.read_to_string().unwrap();
-        match json::from_str(response_string.as_slice()) {
+        match json::from_str(response_string[]) {
             Ok(version_struct) => self.npm_version_from_json(&version_struct),
             Err(_)             => None
         }

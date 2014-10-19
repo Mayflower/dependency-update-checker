@@ -32,7 +32,7 @@ impl Dependency for BowerDependency {
         let require_devs = bower_json.devDependencies.clone().unwrap_or(TreeMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
-            match VersionReq::parse(version.as_slice().trim_left_chars('v')) {
+            match VersionReq::parse(version[].trim_left_chars('v')) {
                 Ok(vr) => Some(BowerDependency { name: name.clone(), version_req: vr }),
                 Err(err) => {
                     println!("{} ignored (could not parse {}: {})", name, version, err);
