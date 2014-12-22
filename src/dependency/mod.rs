@@ -15,10 +15,4 @@ pub trait Dependency : Clone + Send {
     fn name(&self) -> &String;
     fn version_req(&self) -> Option<&VersionReq>;
     fn registry_version(&self) -> Option<Version>;
-    fn clone_dep(&self) -> Box<Dependency + Send> {
-        box self.clone() as Box<Dependency + Send>
-    }
-    fn to_dependency_box(self) -> Box<Dependency> {
-        (box self) as Box<Dependency>
-    }
 }

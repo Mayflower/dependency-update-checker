@@ -1,4 +1,4 @@
-use std::collections::TreeMap;
+use std::collections::HashMap;
 
 use semver::{Version, VersionReq};
 use serialize::json;
@@ -8,8 +8,8 @@ use super::Dependency;
 #[deriving(Decodable, Show)]
 #[allow(non_snake_case)]
 struct BowerJson {
-    dependencies: Option<TreeMap<String, String>>,
-    devDependencies: Option<TreeMap<String, String>>
+    dependencies: Option<HashMap<String, String>>,
+    devDependencies: Option<HashMap<String, String>>
 }
 
 #[deriving(Show, Clone)]
@@ -25,11 +25,11 @@ impl Dependency for BowerDependency {
     fn to_check(bower_json_contents: &str) -> Vec<BowerDependency> {
         let bower_json = match json::decode::<BowerJson>(bower_json_contents) {
             Ok(json) => json,
-            Err(err) => fail!("Failed to parse bower.json: {}", err)
+            Err(err) => panic!("Failed to parse bower.json: {}", err)
         };
 
-        let requires = bower_json.dependencies.clone().unwrap_or(TreeMap::new());
-        let require_devs = bower_json.devDependencies.clone().unwrap_or(TreeMap::new());
+        let requires = bower_json.dependencies.clone().unwrap_or(HashMap::new());
+        let require_devs = bower_json.devDependencies.clone().unwrap_or(HashMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
             match VersionReq::parse(version[].trim_left_chars('v')) {

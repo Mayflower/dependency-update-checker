@@ -1,11 +1,9 @@
 use std::cmp::max;
-use std::collections::TreeMap;
+use std::collections::BTreeMap;
 
-use http::client::RequestWriter;
-use http::method::Get;
+use hyper::Client;
 use semver::{Version, VersionReq};
 use serialize::json::{mod, Json};
-use url::Url;
 
 use super::Dependency;
 
@@ -18,7 +16,7 @@ pub struct ComposerDependency {
 
 impl ComposerDependency {
     fn packagist_version_from_json(&self, json: &Json) -> Option<Version> {
-        json.find_path(&[&"package".to_string(), &"versions".to_string()])
+        json.find_path(&["package", "versions"])
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
@@ -33,29 +31,27 @@ impl ComposerDependency {
             })
     }
 
-    fn packagist_url(&self) -> Url {
-        Url::parse(
-            format!("https://packagist.org/packages/{}.json", self.name)[]
-        ).unwrap()
+    fn packagist_url(&self) -> String {
+        format!("https://packagist.org/packages/{}.json", self.name)
     }
 }
 
 impl Dependency for ComposerDependency {
     fn to_check(composer_json_contents: &str) -> Vec<ComposerDependency> {
         let composer_json = json::from_str(composer_json_contents).unwrap();
-        let default_map = TreeMap::new();
+        let default_map = BTreeMap::new();
 
-        let requires = composer_json.find(&"require".to_string()).map(
+        let requires = composer_json.find("require").map(
             |r| r.as_object().unwrap()
         ).unwrap_or(&default_map);
-        let require_devs = composer_json.find(&"require-dev".to_string()).map(
+        let require_devs = composer_json.find("require-dev").map(
             |r| r.as_object().unwrap()
         ).unwrap_or(&default_map);
 
         requires.iter().chain(require_devs.iter()).map(
             |(k, v)| {
                 match v {
-                    &json::String(ref version) => Some((k.clone(), version.clone())),
+                    &json::Json::String(ref version) => Some((k.clone(), version.clone())),
                     _ => None
                 }
             }
@@ -82,11 +78,7 @@ impl Dependency for ComposerDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let request: RequestWriter = RequestWriter::new(Get, self.packagist_url()).unwrap();
-        let mut response = match request.read_response() {
-            Ok(response)           => response,
-            Err((_request, error)) => fail!(":-( {}", error),
-        };
+        let mut response = Client::new().get(self.packagist_url()[]).send().unwrap();
         let response_string = response.read_to_string().unwrap();
         match json::from_str(response_string[]) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),

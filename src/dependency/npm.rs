@@ -1,11 +1,9 @@
 use std::cmp::max;
-use std::collections::TreeMap;
+use std::collections::HashMap;
 
-use http::client::RequestWriter;
-use http::method::Get;
+use hyper::Client;
 use semver::{Version, VersionReq};
 use serialize::json::{mod, Json};
-use url::Url;
 
 use super::Dependency;
 
@@ -13,8 +11,8 @@ use super::Dependency;
 #[deriving(Decodable, Show)]
 #[allow(non_snake_case)]
 struct PackageJson {
-    dependencies: Option<TreeMap<String, String>>,
-    devDependencies: Option<TreeMap<String, String>>
+    dependencies: Option<HashMap<String, String>>,
+    devDependencies: Option<HashMap<String, String>>
 }
 
 #[deriving(Show, Clone)]
@@ -25,7 +23,7 @@ pub struct NpmDependency {
 
 impl NpmDependency {
     fn npm_version_from_json(&self, json: &Json) -> Option<Version> {
-        json.find(&"versions".to_string())
+        json.find("versions")
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
@@ -40,10 +38,8 @@ impl NpmDependency {
             })
     }
 
-    fn npm_url(&self) -> Url {
-        Url::parse(
-            format!("https://registry.npmjs.org/{}", self.name)[]
-        ).unwrap()
+    fn npm_url(&self) -> String {
+        format!("https://registry.npmjs.org/{}", self.name)
     }
 }
 
@@ -51,11 +47,11 @@ impl Dependency for NpmDependency {
     fn to_check(package_json_contents: &str) -> Vec<NpmDependency> {
         let package_json = match json::decode::<PackageJson>(package_json_contents) {
             Ok(json) => json,
-            Err(err) => fail!("Failed to parse bower.json: {}", err)
+            Err(err) => panic!("Failed to parse bower.json: {}", err)
         };
 
-        let requires = package_json.dependencies.clone().unwrap_or(TreeMap::new());
-        let require_devs = package_json.devDependencies.clone().unwrap_or(TreeMap::new());
+        let requires = package_json.dependencies.clone().unwrap_or(HashMap::new());
+        let require_devs = package_json.devDependencies.clone().unwrap_or(HashMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
             match VersionReq::parse(version[].trim_left_chars('v')) {
@@ -77,11 +73,7 @@ impl Dependency for NpmDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let request: RequestWriter = RequestWriter::new(Get, self.npm_url()).unwrap();
-        let mut response = match request.read_response() {
-            Ok(response)           => response,
-            Err((_request, error)) => fail!(":-( {}", error),
-        };
+        let mut response = Client::new().get(self.npm_url()[]).send().unwrap();
         let response_string = response.read_to_string().unwrap();
         match json::from_str(response_string[]) {
             Ok(version_struct) => self.npm_version_from_json(&version_struct),
