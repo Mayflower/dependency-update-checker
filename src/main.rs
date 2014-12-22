@@ -82,16 +82,15 @@ fn out<Dep: Dependency>(dependencies: (Vec<(&Dep, &Version)>, Vec<(&Dep, &Versio
     t.fg(term::color::GREEN).unwrap();
     for &(dependency, version) in up_to_date_dependencies.iter() {
         debug!("{}", dependency.name());
-        let version_string = version.to_string();
-        (writeln!(t, "{}: {} matches {}", dependency.name(), "test", "test")).unwrap();
+        writeln!(t, "{}: {} matches {}", dependency.name(), version, dependency.version_req().unwrap()).unwrap();
     }
 
-    //println!("");
+    println!("");
 
-    //t.fg(term::color::RED).unwrap();
-    //for &(dependency, version) in outdated_dependencies.iter() {
-        //(writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req().unwrap())).unwrap();
-    //}
+    t.fg(term::color::RED).unwrap();
+    for &(dependency, version) in outdated_dependencies.iter() {
+        writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req().unwrap()).unwrap();
+    }
 }
 
 fn main() {
