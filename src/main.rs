@@ -4,14 +4,12 @@
 extern crate hyper;
 extern crate puppetfile;
 extern crate semver;
-extern crate serialize;
-extern crate term;
+extern crate "rustc-serialize" as rustc_serialize;
 
-#[phase(plugin, link)] extern crate log;
-
+use std::io::File;
+use std::fmt::Show;
 use std::os;
 use std::str;
-use std::io::File;
 use std::sync::Future;
 use dependency::{ComposerDependency, Dependency, NpmDependency, PuppetDependency};
 use semver::Version;
@@ -39,7 +37,7 @@ fn get_published_versions<Dep: Dependency>(dependencies_to_check: &Vec<Dep>)
     ).collect()
 }
 
-fn filter_dependencies<Dep: Dependency>(dependencies_to_check: &Vec<Dep>, published_versions: Vec<(String, Version)>)
+fn filter_dependencies<Dep: Dependency + Show>(dependencies_to_check: &Vec<Dep>, published_versions: Vec<(String, Version)>)
     -> (Vec<(&Dep, &Version)>, Vec<(&Dep, &Version)>)
 {
     let mut outdated_dependencies = dependencies_to_check.iter()
@@ -59,37 +57,24 @@ fn filter_dependencies<Dep: Dependency>(dependencies_to_check: &Vec<Dep>, publis
         .collect::<Vec<(&Dep, &Version)>>();
 
     outdated_dependencies.sort_by(|&(ref d1, _), &(ref d2, _)| d1.name().cmp(d2.name()));
-    for &(ref dep, ref version) in outdated_dependencies.iter() {
-        debug!("Name: {}", dep.name());
-        debug!("Version: {}", version);
-    }
     up_to_date_dependencies.sort_by(|&(ref d1, _), &(ref d2, _)| d1.name().cmp(d2.name()));
-    for &(ref dep, ref version) in up_to_date_dependencies.iter() {
-        debug!("Name: {}", dep.name());
-        debug!("Version: {}", version);
-    }
 
     (outdated_dependencies, up_to_date_dependencies)
 }
 
-fn out<Dep: Dependency>(dependencies: (Vec<(&Dep, &Version)>, Vec<(&Dep, &Version)>)) {
-    let mut t = term::stdout().unwrap();
-
+fn out<Dep: Dependency + Show>(dependencies: (Vec<(&Dep, &Version)>, Vec<(&Dep, &Version)>)) {
     println!("");
 
     let (outdated_dependencies, up_to_date_dependencies) = dependencies;
 
-    t.fg(term::color::GREEN).unwrap();
     for &(dependency, version) in up_to_date_dependencies.iter() {
-        debug!("{}", dependency.name());
-        writeln!(t, "{}: {} matches {}", dependency.name(), version, dependency.version_req().unwrap()).unwrap();
+        println!("{}: {} matches {}", dependency.name(), version, dependency.version_req().unwrap());
     }
 
     println!("");
 
-    t.fg(term::color::RED).unwrap();
     for &(dependency, version) in outdated_dependencies.iter() {
-        writeln!(t, "{}: {} doesn't match {}", dependency.name(), version, dependency.version_req().unwrap()).unwrap();
+        println!("{}: {} doesn't match {}", dependency.name(), version, dependency.version_req().unwrap());
     }
 }
 

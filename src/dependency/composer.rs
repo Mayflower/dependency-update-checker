@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 
 use hyper::Client;
 use semver::{Version, VersionReq};
-use serialize::json::{mod, Json};
+use rustc_serialize::json::{self, Json};
 
 use super::Dependency;
 
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct ComposerDependency {
     name: String,
     version_req: VersionReq
@@ -20,7 +20,7 @@ impl ComposerDependency {
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
-                    Version::parse(version_string[].trim_left_chars('v')).ok()
+                    Version::parse(version_string[].trim_left_matches('v')).ok()
                 }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
@@ -38,7 +38,7 @@ impl ComposerDependency {
 
 impl Dependency for ComposerDependency {
     fn to_check(composer_json_contents: &str) -> Vec<ComposerDependency> {
-        let composer_json = json::from_str(composer_json_contents).unwrap();
+        let composer_json = Json::from_str(composer_json_contents).unwrap();
         let default_map = BTreeMap::new();
 
         let requires = composer_json.find("require").map(
@@ -57,7 +57,7 @@ impl Dependency for ComposerDependency {
             }
         ).filter_map(|opt| match opt {
             Some((ref name, ref version)) => {
-                match VersionReq::parse(version[].trim_left_chars('v')) {
+                match VersionReq::parse(version[].trim_left_matches('v')) {
                     Ok(vr) => Some(ComposerDependency { name: name.clone(), version_req: vr }),
                     Err(err) => {
                         println!("{} ignored (could not parse {}: {})", name, version, err);
@@ -80,7 +80,7 @@ impl Dependency for ComposerDependency {
     fn registry_version(&self) -> Option<Version> {
         let mut response = Client::new().get(self.packagist_url()[]).send().unwrap();
         let response_string = response.read_to_string().unwrap();
-        match json::from_str(response_string[]) {
+        match Json::from_str(response_string[]) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
             Err(_)             => None
         }

@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
 use semver::{Version, VersionReq};
-use serialize::json;
+use rustc_serialize::json;
 
 use super::Dependency;
 
-#[deriving(Decodable, Show)]
+#[derive(RustcDecodable, Show)]
 #[allow(non_snake_case)]
 struct BowerJson {
     dependencies: Option<HashMap<String, String>>,
     devDependencies: Option<HashMap<String, String>>
 }
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct BowerDependency {
     name: String,
     version_req: VersionReq,
@@ -32,7 +32,7 @@ impl Dependency for BowerDependency {
         let require_devs = bower_json.devDependencies.clone().unwrap_or(HashMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
-            match VersionReq::parse(version[].trim_left_chars('v')) {
+            match VersionReq::parse(version[].trim_left_matches('v')) {
                 Ok(vr) => Some(BowerDependency { name: name.clone(), version_req: vr }),
                 Err(err) => {
                     println!("{} ignored (could not parse {}: {})", name, version, err);

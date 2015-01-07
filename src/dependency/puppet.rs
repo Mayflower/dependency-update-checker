@@ -4,7 +4,7 @@ use semver::{Version, VersionReq};
 
 use super::Dependency;
 
-#[deriving(Clone, Show)]
+#[derive(Clone, Show)]
 pub struct PuppetDependency {
     module: PuppetModule,
     forge_url: String,
