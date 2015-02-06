@@ -4,7 +4,7 @@ use semver::{Version, VersionReq};
 
 use super::Dependency;
 
-#[derive(Clone, Show)]
+#[derive(Clone, Debug)]
 pub struct PuppetDependency {
     module: PuppetModule,
     forge_url: String,
@@ -42,7 +42,7 @@ impl Dependency for PuppetDependency {
         match self.module.forge_version(&self.forge_url) {
             Ok(version) => Some(version),
             Err(err) => {
-                println!("{} ignored ({})", self.name(), err);
+                println!("{} ignored ({:?})", self.name(), err);
                 None
             }
         }

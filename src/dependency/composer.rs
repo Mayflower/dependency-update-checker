@@ -8,7 +8,7 @@ use rustc_serialize::json::{self, Json};
 use super::Dependency;
 
 
-#[derive(Show, Clone)]
+#[derive(Debug, Clone)]
 pub struct ComposerDependency {
     name: String,
     version_req: VersionReq
@@ -57,10 +57,10 @@ impl Dependency for ComposerDependency {
             }
         ).filter_map(|opt| match opt {
             Some((ref name, ref version)) => {
-                match VersionReq::parse(version[].trim_left_matches('v')) {
+                match VersionReq::parse(version.trim_left_matches('v')) {
                     Ok(vr) => Some(ComposerDependency { name: name.clone(), version_req: vr }),
                     Err(err) => {
-                        println!("{} ignored (could not parse {}: {})", name, version, err);
+                        println!("{} ignored (could not parse {}: {:?})", name, version, err);
                         None
                     }
                 }
@@ -78,9 +78,9 @@ impl Dependency for ComposerDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let mut response = Client::new().get(self.packagist_url()[]).send().unwrap();
+        let mut response = Client::new().get(&self.packagist_url()[]).send().unwrap();
         let response_string = response.read_to_string().unwrap();
-        match Json::from_str(response_string[]) {
+        match Json::from_str(&response_string[]) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
             Err(_)             => None
         }

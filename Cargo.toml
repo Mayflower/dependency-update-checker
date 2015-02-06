@@ -7,9 +7,9 @@ authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
 [dependencies]
 semver = "*"
 hyper = "*"
-#puppetfile = "*"
+puppetfile = "*"
 log = "*"
 rustc-serialize = "*"
 
-[dependencies.puppetfile]
-git = "git://github.com/mayflower/rust-puppetfile"
+#[dependencies.cargo]
+#git = "git://github.com/rust-lang/cargo"
