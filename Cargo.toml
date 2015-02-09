@@ -10,6 +10,7 @@ hyper = "*"
 puppetfile = "*"
 log = "*"
 rustc-serialize = "*"
+toml = "*"
 
-#[dependencies.cargo]
-#git = "git://github.com/rust-lang/cargo"
+[dependencies.cargo]
+git = "git://github.com/rust-lang/cargo"

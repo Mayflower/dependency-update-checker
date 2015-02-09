@@ -18,18 +18,16 @@ pub struct BowerDependency {
     version_req: VersionReq,
 }
 
-impl BowerDependency {
-}
 
 impl Dependency for BowerDependency {
-    fn to_check(bower_json_contents: &str) -> Vec<BowerDependency> {
+    fn to_check(bower_json_contents: &str, _path: &Path) -> Vec<BowerDependency> {
         let bower_json = match json::decode::<BowerJson>(bower_json_contents) {
             Ok(json) => json,
             Err(err) => panic!("Failed to parse bower.json: {:?}", err)
         };
 
-        let requires = bower_json.dependencies.clone().unwrap_or(HashMap::new());
-        let require_devs = bower_json.devDependencies.clone().unwrap_or(HashMap::new());
+        let requires = bower_json.dependencies.unwrap_or(HashMap::new());
+        let require_devs = bower_json.devDependencies.unwrap_or(HashMap::new());
 
         requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
             match VersionReq::parse(version.trim_left_matches('v')) {
@@ -39,15 +37,15 @@ impl Dependency for BowerDependency {
                     None
                 }
             }
-        ).collect::<Vec<BowerDependency>>()
+        ).collect()
     }
 
     fn name(&self) -> &String {
         &self.name
     }
 
-    fn version_req(&self) -> Option<&VersionReq> {
-        Some(&self.version_req)
+    fn version_req(&self) -> &VersionReq {
+        &self.version_req
     }
 
     fn registry_version(&self) -> Option<Version> {

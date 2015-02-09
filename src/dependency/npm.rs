@@ -27,7 +27,7 @@ impl NpmDependency {
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
-                    Version::parse(version_string[].trim_left_matches('v')).ok()
+                    Version::parse(version_string.trim_left_matches('v')).ok()
                 }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
@@ -44,7 +44,7 @@ impl NpmDependency {
 }
 
 impl Dependency for NpmDependency {
-    fn to_check(package_json_contents: &str) -> Vec<NpmDependency> {
+    fn to_check(package_json_contents: &str, _path: &Path) -> Vec<NpmDependency> {
         let package_json = match json::decode::<PackageJson>(package_json_contents) {
             Ok(json) => json,
             Err(err) => panic!("Failed to parse bower.json: {:?}", err)
@@ -68,14 +68,14 @@ impl Dependency for NpmDependency {
         &self.name
     }
 
-    fn version_req(&self) -> Option<&VersionReq> {
-        Some(&self.version_req)
+    fn version_req(&self) -> &VersionReq {
+        &self.version_req
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let mut response = Client::new().get(&self.npm_url()[]).send().unwrap();
+        let mut response = Client::new().get(&*self.npm_url()).send().unwrap();
         let response_string = response.read_to_string().unwrap();
-        match Json::from_str(&response_string[]) {
+        match Json::from_str(&response_string) {
             Ok(version_struct) => self.npm_version_from_json(&version_struct),
             Err(_)             => None
         }

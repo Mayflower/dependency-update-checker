@@ -20,7 +20,7 @@ impl ComposerDependency {
             .and_then(|versions_json| versions_json.as_object())
             .and_then(|versions_map| {
                 versions_map.keys().map(|version_string| {
-                    Version::parse(version_string[].trim_left_matches('v')).ok()
+                    Version::parse(version_string.trim_left_matches('v')).ok()
                 }).fold(None, |a, b| {
                     match (a, b) {
                         (None, b@_) => b,
@@ -37,7 +37,7 @@ impl ComposerDependency {
 }
 
 impl Dependency for ComposerDependency {
-    fn to_check(composer_json_contents: &str) -> Vec<ComposerDependency> {
+    fn to_check(composer_json_contents: &str, _path: &Path) -> Vec<ComposerDependency> {
         let composer_json = Json::from_str(composer_json_contents).unwrap();
         let default_map = BTreeMap::new();
 
@@ -73,14 +73,14 @@ impl Dependency for ComposerDependency {
         &self.name
     }
 
-    fn version_req(&self) -> Option<&VersionReq> {
-        Some(&self.version_req)
+    fn version_req(&self) -> &VersionReq {
+        &self.version_req
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let mut response = Client::new().get(&self.packagist_url()[]).send().unwrap();
+        let mut response = Client::new().get(&*self.packagist_url()).send().unwrap();
         let response_string = response.read_to_string().unwrap();
-        match Json::from_str(&response_string[]) {
+        match Json::from_str(&response_string) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
             Err(_)             => None
         }

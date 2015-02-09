@@ -10,7 +10,7 @@ pub struct PuppetDependency {
     forge_url: String,
 }
 impl Dependency for PuppetDependency {
-    fn to_check(puppetfile_contents: &str) -> Vec<PuppetDependency> {
+    fn to_check(puppetfile_contents: &str, _path: &Path) -> Vec<PuppetDependency> {
         match Puppetfile::parse(puppetfile_contents) {
             Ok(puppetfile) => {
                 let forge_url = puppetfile.forge.clone();
@@ -34,8 +34,8 @@ impl Dependency for PuppetDependency {
         &self.module.name
     }
 
-    fn version_req(&self) -> Option<&VersionReq> {
-        self.module.version()
+    fn version_req(&self) -> &VersionReq {
+        self.module.version().unwrap()
     }
 
     fn registry_version(&self) -> Option<Version> {
