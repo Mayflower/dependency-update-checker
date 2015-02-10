@@ -16,7 +16,6 @@ use super::Dependency;
 #[derive(Clone, Debug)]
 pub struct CargoDependency {
     name: String,
-    version_req: VersionReq,
     orig_dependency: CargoOrigDependency
 }
 
@@ -41,9 +40,8 @@ impl Dependency for CargoDependency {
         let (config, source_id) = get_config_source_id(&mut multi_shell);
 
         match read_manifest(cargo_toml_contents.as_bytes(), layout, &source_id, &config) {
-            Ok((manifest, _)) => manifest.get_dependencies().iter().map(|dep| CargoDependency {
-                name: dep.get_name().to_string(),
-                version_req: dep.get_version_req().clone(),
+            Ok((manifest, _)) => manifest.dependencies().iter().map(|dep| CargoDependency {
+                name: dep.name().to_string(),
                 orig_dependency: dep.clone()
             }).collect(),
             _ => vec![]
@@ -55,7 +53,7 @@ impl Dependency for CargoDependency {
     }
 
     fn version_req(&self) -> &VersionReq {
-        &self.version_req
+        &self.orig_dependency.version_req()
     }
 
     fn registry_version(&self) -> Option<Version> {
@@ -66,6 +64,6 @@ impl Dependency for CargoDependency {
             Ok(summaries) => summaries,
             Err(_) => return None
         };
-        summaries.into_iter().map(|s| s.get_version().clone()).max()
+        summaries.into_iter().map(|s| s.version().clone()).max()
     }
 }
