@@ -56,9 +56,9 @@ impl Dependency for ComposerDependency {
                 }
             }
         ).filter_map(|opt| match opt {
-            Some((ref name, ref version)) => {
+            Some((name, version)) => {
                 match VersionReq::parse(version.trim_left_matches('v')) {
-                    Ok(vr) => Some(ComposerDependency { name: name.clone(), version_req: vr }),
+                    Ok(vr) => Some(ComposerDependency { name: name, version_req: vr }),
                     Err(err) => {
                         println!("{} ignored (could not parse {}: {:?})", name, version, err);
                         None

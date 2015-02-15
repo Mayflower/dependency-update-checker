@@ -45,17 +45,14 @@ impl NpmDependency {
 
 impl Dependency for NpmDependency {
     fn to_check(package_json_contents: &str, _path: &Path) -> Vec<NpmDependency> {
-        let package_json = match json::decode::<PackageJson>(package_json_contents) {
-            Ok(json) => json,
-            Err(err) => panic!("Failed to parse bower.json: {:?}", err)
-        };
+        let package_json = json::decode::<PackageJson>(package_json_contents).unwrap();
 
-        let requires = package_json.dependencies.clone().unwrap_or(HashMap::new());
-        let require_devs = package_json.devDependencies.clone().unwrap_or(HashMap::new());
+        let requires = package_json.dependencies.unwrap_or(HashMap::new());
+        let require_devs = package_json.devDependencies.unwrap_or(HashMap::new());
 
-        requires.iter().chain(require_devs.iter()).filter_map(|(name, version)|
+        requires.into_iter().chain(require_devs.into_iter()).filter_map(|(name, version)|
             match VersionReq::parse(version.trim_left_matches('v')) {
-                Ok(vr) => Some(NpmDependency { name: name.clone(), version_req: vr }),
+                Ok(vr) => Some(NpmDependency { name: name, version_req: vr }),
                 Err(err) => {
                     println!("{} ignored (could not parse {}: {:?})", name, version, err);
                     None
@@ -75,9 +72,6 @@ impl Dependency for NpmDependency {
     fn registry_version(&self) -> Option<Version> {
         let mut response = Client::new().get(&*self.npm_url()).send().unwrap();
         let response_string = response.read_to_string().unwrap();
-        match Json::from_str(&response_string) {
-            Ok(version_struct) => self.npm_version_from_json(&version_struct),
-            Err(_)             => None
-        }
+        Json::from_str(&response_string).ok().and_then(|json| self.npm_version_from_json(&json))
     }
 }
