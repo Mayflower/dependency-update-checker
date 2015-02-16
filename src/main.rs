@@ -63,16 +63,20 @@ fn filter_dependencies<Dep: Dependency>(dependencies_to_check: &Vec<Dep>,
 fn out<Dep>((outdated_dependencies, up_to_date_dependencies): (Vec<(&Dep, Version)>, Vec<(&Dep, Version)>))
     where Dep: Dependency
 {
-    println!("");
+    if up_to_date_dependencies.len() != 0 {
+        println!("");
 
-    for (dependency, version) in up_to_date_dependencies {
-        println!("{}: {} matches {}", dependency.name(), version, dependency.version_req());
+        for (dependency, version) in up_to_date_dependencies {
+            println!("{}: {} matches {}", dependency.name(), version, dependency.version_req());
+        }
     }
 
-    println!("");
+    if outdated_dependencies.len() != 0 {
+        println!("");
 
-    for (dependency, version) in outdated_dependencies {
-        println!("{}: {} doesn't match {}", dependency.name(), version, dependency.version_req());
+        for (dependency, version) in outdated_dependencies {
+            println!("{}: {} doesn't match {}", dependency.name(), version, dependency.version_req());
+        }
     }
 }
 
@@ -81,33 +85,36 @@ fn check<Dep: Dependency>(dependencies: &Vec<Dep>) {
 }
 
 fn main() {
-    let args = env::args().collect::<Vec<_>>();
-    let new_path = Path::new(&args[1]);
-    let path = &OldPath::new(&args[1]);
-    let mut dependency_file_contents = String::new();
-    if let Err(err) = File::open(path).map(|mut f|
-       if let Err(err) = f.read_to_string(&mut dependency_file_contents) {
-           println!("{}", err); return;
-       }
-    ) {
-        println!("{}", err); return;
-    };
+    env::args().skip(1).map(|arg| {
+        let new_path = Path::new(&arg);
+        let path = &OldPath::new(&arg);
+        let mut dependency_file_contents = String::new();
+        if let Err(err) = File::open(path).map(|mut f|
+           if let Err(err) = f.read_to_string(&mut dependency_file_contents) {
+               println!("{}", err); return;
+           }
+        ) {
+            println!("{}", err); return;
+        };
 
-    match new_path.file_name() {
-        Some(name) if name.to_str() == Some("Cargo.toml") => {
-            check(&<CargoDependency as Dependency>::to_check(&dependency_file_contents, path));
-        }
-        Some(name) if name.to_str() == Some("composer.json") => {
-            check(&<ComposerDependency as Dependency>::to_check(&dependency_file_contents, path));
-        }
-        Some(name) if name.to_str() == Some("Puppetfile") => {
-            check(&<PuppetDependency as Dependency>::to_check(&dependency_file_contents, path));
-        }
-        Some(name) if name.to_str() == Some("package.json") => {
-            check(&<NpmDependency as Dependency>::to_check(&dependency_file_contents, path));
-        }
-        _ => {
-            println!("File type not recognized");
-        }
-    };
+        println!("File to check: {}", new_path.display());
+        match new_path.file_name() {
+            Some(name) if name.to_str() == Some("Cargo.toml") => {
+                check(&<CargoDependency as Dependency>::to_check(&dependency_file_contents, path));
+            }
+            Some(name) if name.to_str() == Some("composer.json") => {
+                check(&<ComposerDependency as Dependency>::to_check(&dependency_file_contents, path));
+            }
+            Some(name) if name.to_str() == Some("Puppetfile") => {
+                check(&<PuppetDependency as Dependency>::to_check(&dependency_file_contents, path));
+            }
+            Some(name) if name.to_str() == Some("package.json") => {
+                check(&<NpmDependency as Dependency>::to_check(&dependency_file_contents, path));
+            }
+            _ => {
+                println!("File type not recognized");
+            }
+        };
+        println!("\n");
+    }).collect::<Vec<_>>();
 }
