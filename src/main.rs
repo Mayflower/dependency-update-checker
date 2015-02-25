@@ -1,5 +1,4 @@
-#![feature(slicing_syntax)]
-#![feature(core, env, fs, os, path, io)]
+#![feature(env, fs, os, path, io)]
 
 extern crate cargo;
 extern crate hyper;

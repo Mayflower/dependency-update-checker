@@ -12,7 +12,7 @@ mod composer;
 mod npm;
 mod puppet;
 
-pub trait Dependency : Clone + Send {
+pub trait Dependency : Clone + Send + 'static {
     fn to_check(dependency_file_contents: &str, path: &Path) -> Vec<Self>;
     fn name(&self) -> &String;
     fn version_req(&self) -> &VersionReq;
