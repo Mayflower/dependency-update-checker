@@ -1,3 +1,6 @@
+use std::io::sink;
+use std::path::Path;
+
 use semver::{Version, VersionReq};
 
 use cargo::core::{Shell, MultiShell, ShellConfig};
@@ -9,8 +12,6 @@ use cargo::sources::registry::RegistrySource;
 use cargo::util::config::Config;
 use cargo::util::toml::project_layout;
 
-use std::old_io::util::NullWriter;
-
 use super::Dependency;
 
 #[derive(Clone, Debug)]
@@ -20,24 +21,23 @@ pub struct CargoDependency {
 }
 
 fn get_multi_shell() -> MultiShell {
-        let shell_config = ShellConfig { color: false, verbose: false, tty: false };
-        let shell_a = Shell::create(Box::new(NullWriter), shell_config);
-        let shell_b = Shell::create(Box::new(NullWriter), shell_config);
-        MultiShell::new(shell_a, shell_b, false)
+    let shell_config = ShellConfig { color: false, verbose: false, tty: false };
+    let shell = Shell::create(Box::new(sink()), shell_config);
+    let shell2 = Shell::create(Box::new(sink()), shell_config);
+    MultiShell::new(shell, shell2, false)
 }
 
-fn get_config_source_id<'a>(multi_shell: &'a mut MultiShell) -> (Config<'a>, SourceId) {
-        let config = Config::new(multi_shell).unwrap();
-        let source_id = SourceId::for_central(&config).unwrap();
+fn get_config_source_id() -> (Config, SourceId) {
+    let config = Config::new(get_multi_shell()).unwrap();
+    let source_id = SourceId::for_central(&config).unwrap();
 
-        (config, source_id)
+    (config, source_id)
 }
 
 impl Dependency for CargoDependency {
     fn to_check(cargo_toml_contents: &str, path: &Path) -> Vec<CargoDependency> {
-        let layout = project_layout(&path.dir_path());
-        let mut multi_shell = get_multi_shell();
-        let (config, source_id) = get_config_source_id(&mut multi_shell);
+        let layout = project_layout(&path.parent().unwrap());
+        let (config, source_id) = get_config_source_id();
 
         match read_manifest(cargo_toml_contents.as_bytes(), layout, &source_id, &config) {
             Ok((manifest, _)) => manifest.dependencies().iter().map(|dep| CargoDependency {
@@ -57,8 +57,7 @@ impl Dependency for CargoDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let mut multi_shell = get_multi_shell();
-        let (config, source_id) = get_config_source_id(&mut multi_shell);
+        let (config, source_id) = get_config_source_id();
         let mut registry = RegistrySource::new(&source_id, &config);
         let summaries = match registry.query(&self.orig_dependency) {
             Ok(summaries) => summaries,

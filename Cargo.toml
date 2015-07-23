@@ -7,10 +7,12 @@ authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
 [dependencies]
 semver = "*"
 hyper = "*"
-puppetfile = "*"
+#puppetfile = "*"
 log = "*"
 rustc-serialize = "*"
 toml = "*"
+eventual = "0.1.3"
 
 [dependencies.cargo]
 git = "git://github.com/rust-lang/cargo"
+tag = "0.3.0"

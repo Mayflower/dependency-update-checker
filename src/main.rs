@@ -1,19 +1,21 @@
-#![feature(env, fs, os, path, io)]
+//#![feature(std_misc)]
 
 extern crate cargo;
+extern crate eventual;
 extern crate hyper;
-extern crate puppetfile;
+//extern crate puppetfile;
 extern crate semver;
 extern crate toml;
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
 
 use std::fs::File;
 use std::env;
 use std::io::Read;
 use std::path::Path;
-use std::old_path::Path as OldPath;
-use std::sync::Future;
-use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency, PuppetDependency};
+use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency};
+//use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency, PuppetDependency};
+
+use eventual::{join, Async, Future};
 use semver::Version;
 
 mod dependency;
@@ -21,7 +23,7 @@ mod dependency;
 fn get_published_versions<Dep: Dependency>(dependencies_to_check: &Vec<Dep>)
     -> Vec<(String, Version)> {
 
-    let mut version_ftrs = dependencies_to_check.iter().map(|d| {
+    let version_ftrs = dependencies_to_check.iter().map(|d| {
         let dependency = d.clone();
 
         Future::spawn(move || {
@@ -29,7 +31,7 @@ fn get_published_versions<Dep: Dependency>(dependencies_to_check: &Vec<Dep>)
         })
     }).collect::<Vec<_>>();
 
-    version_ftrs.iter_mut().map(|ftr| ftr.get()).filter_map(|tpl| match tpl {
+    join(version_ftrs).await().unwrap().into_iter().filter_map(|tpl| match tpl {
         (name, Some(version)) => Some((name, version)),
         _ => None
     }).collect()
@@ -85,8 +87,7 @@ fn check<Dep: Dependency>(dependencies: &Vec<Dep>) {
 
 fn main() {
     env::args().skip(1).map(|arg| {
-        let new_path = Path::new(&arg);
-        let path = &OldPath::new(&arg);
+        let path = Path::new(&arg);
         let mut dependency_file_contents = String::new();
         if let Err(err) = File::open(path).map(|mut f|
            if let Err(err) = f.read_to_string(&mut dependency_file_contents) {
@@ -96,19 +97,19 @@ fn main() {
             println!("{}", err); return;
         };
 
-        println!("File to check: {}", new_path.display());
-        match new_path.file_name() {
+        println!("File to check: {}", path.display());
+        match path.file_name() {
             Some(name) if name.to_str() == Some("Cargo.toml") => {
-                check(&<CargoDependency as Dependency>::to_check(&dependency_file_contents, path));
+                check(&CargoDependency::to_check(&dependency_file_contents, &path));
             }
             Some(name) if name.to_str() == Some("composer.json") => {
-                check(&<ComposerDependency as Dependency>::to_check(&dependency_file_contents, path));
+                check(&ComposerDependency::to_check(&dependency_file_contents, &path));
             }
-            Some(name) if name.to_str() == Some("Puppetfile") => {
-                check(&<PuppetDependency as Dependency>::to_check(&dependency_file_contents, path));
-            }
+            // Some(name) if name.to_str() == Some("Puppetfile") => {
+            //     check(&PuppetDependency::to_check(&dependency_file_contents, &path));
+            // }
             Some(name) if name.to_str() == Some("package.json") => {
-                check(&<NpmDependency as Dependency>::to_check(&dependency_file_contents, path));
+                check(&NpmDependency::to_check(&dependency_file_contents, &path));
             }
             _ => {
                 println!("File type not recognized");

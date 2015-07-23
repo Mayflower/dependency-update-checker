@@ -1,5 +1,7 @@
 use std::cmp::max;
 use std::collections::HashMap;
+use std::io::Read;
+use std::path::Path;
 
 use hyper::Client;
 use semver::{Version, VersionReq};
@@ -70,8 +72,10 @@ impl Dependency for NpmDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let mut response = Client::new().get(&*self.npm_url()).send().unwrap();
-        let response_string = response.read_to_string().unwrap();
-        Json::from_str(&response_string).ok().and_then(|json| self.npm_version_from_json(&json))
+        let client = Client::new();
+        let mut response = client.get(&*self.npm_url()).send().unwrap();
+        let ref mut response_string = String::new();
+        response.read_to_string(response_string).unwrap();
+        Json::from_str(response_string).ok().and_then(|json| self.npm_version_from_json(&json))
     }
 }
