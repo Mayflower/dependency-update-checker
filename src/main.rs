@@ -1,9 +1,7 @@
-//#![feature(std_misc)]
-
 extern crate cargo;
 extern crate eventual;
 extern crate hyper;
-//extern crate puppetfile;
+extern crate puppetfile;
 extern crate semver;
 extern crate toml;
 extern crate rustc_serialize;
@@ -12,8 +10,7 @@ use std::fs::File;
 use std::env;
 use std::io::Read;
 use std::path::Path;
-use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency};
-//use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency, PuppetDependency};
+use dependency::{CargoDependency, ComposerDependency, Dependency, NpmDependency, PuppetDependency};
 
 use eventual::{join, Async, Future};
 use semver::Version;
@@ -105,9 +102,9 @@ fn main() {
             Some(name) if name.to_str() == Some("composer.json") => {
                 check(&ComposerDependency::to_check(&dependency_file_contents, &path));
             }
-            // Some(name) if name.to_str() == Some("Puppetfile") => {
-            //     check(&PuppetDependency::to_check(&dependency_file_contents, &path));
-            // }
+            Some(name) if name.to_str() == Some("Puppetfile") => {
+                check(&PuppetDependency::to_check(&dependency_file_contents, &path));
+            }
             Some(name) if name.to_str() == Some("package.json") => {
                 check(&NpmDependency::to_check(&dependency_file_contents, &path));
             }

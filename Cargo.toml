@@ -1,13 +1,13 @@
 [package]
 
-name = "dependency-update-checker"
+name = "duck"
 version = "0.0.1"
 authors = ["Robin Gloster <robin.gloster@mayflower.de>"]
 
 [dependencies]
 semver = "*"
 hyper = "*"
-#puppetfile = "*"
+puppetfile = "*"
 log = "*"
 rustc-serialize = "*"
 toml = "*"

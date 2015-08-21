@@ -1,15 +1,12 @@
 with import <nixpkgs> {};
 
-stdenv.mkDerivation {
+rustPlatform.buildRustPackage {
   name = "duck";
+  src = ./.;
   buildInputs = [
-    cargoSnapshot.cargo
-    rustPlatform.rustc
     openssl
     cmake
-    #libssh2
-    #libgit2
-    #pkgconfig
     zlibStatic
   ];
+  depsSha256 = "0idqwqi5dnrpfpn576460a9m2l7hkbhk26kxlw9j7j7bnqrw5pdr";
 }

@@ -6,13 +6,13 @@ use semver::{Version, VersionReq};
 pub use self::cargo::CargoDependency;
 pub use self::composer::ComposerDependency;
 pub use self::npm::NpmDependency;
-//pub use self::puppet::PuppetDependency;
+pub use self::puppet::PuppetDependency;
 
 //mod bower;
 mod cargo;
 mod composer;
 mod npm;
-//mod puppet;
+mod puppet;
 
 pub trait Dependency : Clone + Send + 'static {
     fn to_check(dependency_file_contents: &str, path: &Path) -> Vec<Self>;

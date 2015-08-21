@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use puppetfile::Module as PuppetModule;
 use puppetfile::Puppetfile;
 use semver::{Version, VersionReq};
