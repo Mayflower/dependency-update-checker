@@ -13,7 +13,7 @@ use super::Dependency;
 #[derive(Debug, Clone)]
 pub struct ComposerDependency {
     name: String,
-    version_req: VersionReq
+    version_req: VersionReq,
 }
 
 impl ComposerDependency {
@@ -86,7 +86,7 @@ impl Dependency for ComposerDependency {
         response.read_to_string(response_string).unwrap();
         match Json::from_str(response_string) {
             Ok(version_struct) => self.packagist_version_from_json(&version_struct),
-            Err(_)             => None
+            Err(_) => None,
         }
     }
 }

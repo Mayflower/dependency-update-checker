@@ -17,7 +17,7 @@ use super::Dependency;
 #[derive(Clone, Debug)]
 pub struct CargoDependency {
     name: String,
-    orig_dependency: CargoOrigDependency
+    orig_dependency: CargoOrigDependency,
 }
 
 fn get_multi_shell() -> MultiShell {
@@ -44,7 +44,7 @@ impl Dependency for CargoDependency {
                 name: dep.name().to_string(),
                 orig_dependency: dep.clone()
             }).collect(),
-            _ => vec![]
+            _ => vec![],
         }
     }
 
@@ -61,7 +61,7 @@ impl Dependency for CargoDependency {
         let mut registry = RegistrySource::new(&source_id, &config);
         let summaries = match registry.query(&self.orig_dependency) {
             Ok(summaries) => summaries,
-            Err(_) => return None
+            Err(_) => return None,
         };
         summaries.into_iter().map(|s| s.version().clone()).max()
     }

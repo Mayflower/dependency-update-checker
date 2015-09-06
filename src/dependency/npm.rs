@@ -14,13 +14,13 @@ use super::Dependency;
 #[allow(non_snake_case)]
 struct PackageJson {
     dependencies: Option<HashMap<String, String>>,
-    devDependencies: Option<HashMap<String, String>>
+    devDependencies: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NpmDependency {
     name: String,
-    version_req: VersionReq
+    version_req: VersionReq,
 }
 
 impl NpmDependency {

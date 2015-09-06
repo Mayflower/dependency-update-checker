@@ -18,7 +18,7 @@ use semver::Version;
 mod dependency;
 
 fn get_published_versions<Dep: Dependency>(dependencies_to_check: &Vec<Dep>)
-    -> Vec<(String, Version)> {
+                                           -> Vec<(String, Version)> {
 
     let version_ftrs = dependencies_to_check.iter().map(|d| {
         let dependency = d.clone();
@@ -36,18 +36,17 @@ fn get_published_versions<Dep: Dependency>(dependencies_to_check: &Vec<Dep>)
 
 fn filter_dependencies<Dep: Dependency>(dependencies_to_check: &Vec<Dep>,
                                         published_versions: Vec<(String, Version)>)
-    -> (Vec<(&Dep, Version)>, Vec<(&Dep, Version)>)
-{
+                                        -> (Vec<(&Dep, Version)>, Vec<(&Dep, Version)>) {
     let mut outdated_dependencies = dependencies_to_check.iter()
         .filter_map(|d| match published_versions.iter().find(|&&(ref name, _)| d.name() == name) {
-            Some(&(_, ref version)) if !d.version_req().matches(version) => Some((d, version.clone())),
+            Some(&(_, ref ver)) if !d.version_req().matches(ver) => Some((d, ver.clone())),
             _ => None
         })
         .collect::<Vec<_>>();
 
     let mut up_to_date_dependencies = dependencies_to_check.iter()
         .filter_map(|d| match published_versions.iter().find(|&&(ref name, _)| d.name() == name) {
-            Some(&(_, ref version)) if d.version_req().matches(version) => Some((d, version.clone())),
+            Some(&(_, ref ver)) if d.version_req().matches(ver) => Some((d, ver.clone())),
             _ => None
         })
         .collect::<Vec<_>>();

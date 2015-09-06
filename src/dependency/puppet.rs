@@ -24,7 +24,7 @@ impl Dependency for PuppetDependency {
                             forge_url: forge_url.clone(),
                         }
                     ).collect()
-            },
+            }
             Err(err) => {
                 println!("Couldn't parse Puppetfile: {}", err);
                 vec![]
