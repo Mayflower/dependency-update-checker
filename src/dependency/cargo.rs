@@ -1,14 +1,14 @@
-use std::io::sink;
+use std::io::{sink, Read};
 use std::path::Path;
 
+use hyper::Client;
+use rustc_serialize::json;
 use semver::{Version, VersionReq};
 
-use cargo::core::{Shell, MultiShell, ShellConfig};
+use cargo::core::{ColorConfig, Shell, MultiShell, ShellConfig, Verbosity};
 use cargo::core::dependency::Dependency as CargoOrigDependency;
-use cargo::core::registry::Registry;
 use cargo::core::source::SourceId;
 use cargo::ops::read_manifest;
-use cargo::sources::registry::RegistrySource;
 use cargo::util::config::Config;
 use cargo::util::toml::project_layout;
 
@@ -20,11 +20,22 @@ pub struct CargoDependency {
     orig_dependency: CargoOrigDependency,
 }
 
+#[derive(RustcDecodable, Debug)]
+struct CratesIoVersion {
+    num: String
+}
+
+#[derive(RustcDecodable, Debug)]
+struct CratesIoResponse {
+    versions: Vec<CratesIoVersion>
+}
+
+
 fn get_multi_shell() -> MultiShell {
-    let shell_config = ShellConfig { color: false, verbose: false, tty: false };
+    let shell_config = ShellConfig { color_config: ColorConfig::Never, tty: false };
     let shell = Shell::create(Box::new(sink()), shell_config);
     let shell2 = Shell::create(Box::new(sink()), shell_config);
-    MultiShell::new(shell, shell2, false)
+    MultiShell::new(shell, shell2, Verbosity::Quiet)
 }
 
 fn get_config_source_id() -> (Config, SourceId) {
@@ -57,12 +68,17 @@ impl Dependency for CargoDependency {
     }
 
     fn registry_version(&self) -> Option<Version> {
-        let (config, source_id) = get_config_source_id();
-        let mut registry = RegistrySource::new(&source_id, &config);
-        let summaries = match registry.query(&self.orig_dependency) {
-            Ok(summaries) => summaries,
-            Err(_) => return None,
-        };
-        summaries.into_iter().map(|s| s.version().clone()).max()
+        let client = Client::new();
+        let mut response = client.get(
+            &*format!("https://crates.io/api/v1/crates/{}", self.name)
+        ).send().unwrap();
+        let ref mut response_string = String::new();
+        response.read_to_string(response_string).unwrap();
+
+        json::decode::<CratesIoResponse>(response_string).map(
+            |r| r.versions.iter().filter_map(
+                |crio_v| Version::parse(&*crio_v.num).ok()
+            ).max()
+        ).ok().and_then(|id| id)
     }
 }

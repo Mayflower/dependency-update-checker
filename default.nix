@@ -4,9 +4,9 @@ rustPlatform.buildRustPackage {
   name = "duck";
   src = ./.;
   buildInputs = [
-    openssl
+    libressl
     cmake
     zlibStatic
   ];
-  depsSha256 = "0idqwqi5dnrpfpn576460a9m2l7hkbhk26kxlw9j7j7bnqrw5pdr";
+  depsSha256 = "1idmd0n5qazhvczd5aw3jkgkz5plg6r7fkaljpc9017qy5ddkf99";
 }
