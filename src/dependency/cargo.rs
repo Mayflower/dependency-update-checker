@@ -1,84 +1,100 @@
-use std::io::{sink, Read};
 use std::path::Path;
 
-use hyper::Client;
-use rustc_serialize::json;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use cargo::core::EitherManifest;
+use cargo::util::toml::read_manifest;
+use cargo::util::OptVersionReq;
+use futures::TryFutureExt;
+use reqwest::Client;
 use semver::{Version, VersionReq};
 
-use cargo::core::{ColorConfig, Shell, MultiShell, ShellConfig, Verbosity};
-use cargo::core::dependency::Dependency as CargoOrigDependency;
 use cargo::core::source::SourceId;
-use cargo::ops::read_manifest;
 use cargo::util::config::Config;
-use cargo::util::toml::project_layout;
+use serde::Deserialize;
+use tracing::{debug, warn};
 
 use super::Dependency;
 
 #[derive(Clone, Debug)]
 pub struct CargoDependency {
     name: String,
-    orig_dependency: CargoOrigDependency,
+    version_req: VersionReq,
 }
 
-#[derive(RustcDecodable, Debug)]
-struct CratesIoVersion {
-    num: String
+#[derive(Debug, Deserialize)]
+struct CratesIoCrate {
+    max_stable_version: String,
 }
 
-#[derive(RustcDecodable, Debug)]
+#[derive(Debug, Deserialize)]
 struct CratesIoResponse {
-    versions: Vec<CratesIoVersion>
+    #[serde(rename = "crate")]
+    crate_: CratesIoCrate,
 }
 
+fn get_config_source_id() -> Result<(Config, SourceId)> {
+    let config = Config::default()?;
+    let source_id = SourceId::crates_io(&config)?;
 
-fn get_multi_shell() -> MultiShell {
-    let shell_config = ShellConfig { color_config: ColorConfig::Never, tty: false };
-    let shell = Shell::create(Box::new(sink()), shell_config);
-    let shell2 = Shell::create(Box::new(sink()), shell_config);
-    MultiShell::new(shell, shell2, Verbosity::Quiet)
+    Ok((config, source_id))
 }
 
-fn get_config_source_id() -> (Config, SourceId) {
-    let config = Config::new(get_multi_shell()).unwrap();
-    let source_id = SourceId::for_central(&config).unwrap();
-
-    (config, source_id)
+impl CargoDependency {
+    fn cargo_url(&self) -> String {
+        format!("https://crates.io/api/v1/crates/{}", self.name)
+    }
 }
 
+#[async_trait]
 impl Dependency for CargoDependency {
-    fn to_check(cargo_toml_contents: &str, path: &Path) -> Vec<CargoDependency> {
-        let layout = project_layout(&path.parent().unwrap());
-        let (config, source_id) = get_config_source_id();
+    fn to_check(_cargo_toml_contents: &str, path: &Path) -> Result<Vec<CargoDependency>> {
+        let (config, source_id) = get_config_source_id()?;
 
-        match read_manifest(cargo_toml_contents.as_bytes(), layout, &source_id, &config) {
-            Ok((manifest, _)) => manifest.dependencies().iter().map(|dep| CargoDependency {
-                name: dep.name().to_string(),
-                orig_dependency: dep.clone()
-            }).collect(),
-            _ => vec![],
-        }
+        Ok(
+            match read_manifest(&path.canonicalize()?, source_id, &config) {
+                Ok((EitherManifest::Real(manifest), _)) => manifest
+                    .dependencies()
+                    .iter()
+                    .map(|dep| CargoDependency {
+                        name: dep.package_name().to_string(),
+                        version_req: match dep.version_req() {
+                            OptVersionReq::Any => VersionReq::STAR,
+                            OptVersionReq::Locked(_, vr) | OptVersionReq::Req(vr) => vr.clone(),
+                        },
+                    })
+                    .collect(),
+                _ => vec![],
+            },
+        )
     }
 
-    fn name(&self) -> &String {
+    fn name(&self) -> &str {
         &self.name
     }
 
     fn version_req(&self) -> &VersionReq {
-        &self.orig_dependency.version_req()
+        &self.version_req
     }
 
-    fn registry_version(&self) -> Option<Version> {
-        let client = Client::new();
-        let mut response = client.get(
-            &*format!("https://crates.io/api/v1/crates/{}", self.name)
-        ).send().unwrap();
-        let ref mut response_string = String::new();
-        response.read_to_string(response_string).unwrap();
-
-        json::decode::<CratesIoResponse>(response_string).map(
-            |r| r.versions.iter().filter_map(
-                |crio_v| Version::parse(&*crio_v.num).ok()
-            ).max()
-        ).ok().and_then(|id| id)
+    async fn registry_version(&self) -> Option<Version> {
+        debug!("{} start", self.name);
+        Client::new()
+            .get(self.cargo_url())
+            .header("User-Agent", "dependency-checker")
+            .send()
+            .and_then(|resp| resp.json::<CratesIoResponse>())
+            .await
+            .map_err(|e| anyhow!(e))
+            .and_then(|decoded| {
+                Version::parse(&decoded.crate_.max_stable_version).map_err(|e| anyhow!(e))
+            })
+            .map_or_else(
+                |e| {
+                    warn!("Could not fetch {}: {e}", self.name);
+                    None
+                },
+                |v| Some(v),
+            )
     }
 }

@@ -1,14 +1,15 @@
 use std::cmp::max;
-use std::collections::BTreeMap;
-use std::io::Read;
 use std::path::Path;
 
-use hyper::Client;
+use anyhow::Result;
+use async_trait::async_trait;
+use futures::TryFutureExt;
+use reqwest::Client;
 use semver::{Version, VersionReq};
-use rustc_serialize::json::{self, Json};
+use serde_json::Value;
+use tracing::{debug, warn};
 
 use super::Dependency;
-
 
 #[derive(Debug, Clone)]
 pub struct ComposerDependency {
@@ -17,19 +18,25 @@ pub struct ComposerDependency {
 }
 
 impl ComposerDependency {
-    fn packagist_version_from_json(&self, json: &Json) -> Option<Version> {
-        json.find_path(&["package", "versions"])
-            .and_then(|versions_json| versions_json.as_object())
+    fn packagist_version_from_json(&self, json: &Value) -> Option<Version> {
+        json["package"]["versions"]
+            .as_object()
             .and_then(|versions_map| {
-                versions_map.keys().map(|version_string| {
-                    Version::parse(version_string.trim_left_matches('v')).ok()
-                }).fold(None, |a, b| {
-                    match (a, b) {
-                        (None, b@_) => b,
-                        (a@Some(_), None) => a,
-                        (Some(a), Some(b)) => Some(max(a, b))
-                    }
-                })
+                versions_map
+                    .keys()
+                    .filter_map(|version_string| {
+                        Version::parse(version_string.trim_start_matches('v'))
+                            .ok()
+                            .and_then(|v| if v.pre.is_empty() {
+                                Some(v)
+                            } else {
+                                None
+                            })
+                    })
+                    .fold(None, |a, b| match (a, b) {
+                        (None, b) => Some(b),
+                        (Some(a), b) => Some(max(a, b)),
+                    })
             })
     }
 
@@ -38,40 +45,41 @@ impl ComposerDependency {
     }
 }
 
+#[async_trait]
 impl Dependency for ComposerDependency {
-    fn to_check(composer_json_contents: &str, _path: &Path) -> Vec<ComposerDependency> {
-        let composer_json = Json::from_str(composer_json_contents).unwrap();
-        let default_map = BTreeMap::new();
+    fn to_check(composer_json_contents: &str, _path: &Path) -> Result<Vec<ComposerDependency>> {
+        let composer_json = serde_json::from_str::<Value>(composer_json_contents)?;
 
-        let requires = composer_json.find("require").map(
-            |r| r.as_object().unwrap()
-        ).unwrap_or(&default_map);
-        let require_devs = composer_json.find("require-dev").map(
-            |r| r.as_object().unwrap()
-        ).unwrap_or(&default_map);
+        let requires = composer_json["require"].as_object();
+        let require_devs = composer_json["require-dev"].as_object();
 
-        requires.iter().chain(require_devs.iter()).map(
-            |(k, v)| {
-                match v {
-                    &json::Json::String(ref version) => Some((k.clone(), version.clone())),
-                    _ => None
-                }
-            }
-        ).filter_map(|opt| match opt {
-            Some((name, version)) => {
-                match VersionReq::parse(version.trim_left_matches('v')) {
-                    Ok(vr) => Some(ComposerDependency { name: name, version_req: vr }),
+        Ok(requires
+            .into_iter()
+            .chain(require_devs.into_iter())
+            .flat_map(|map| {
+                map.iter().map(|(k, v)| match v {
+                    Value::String(version) => Some((k.clone(), version.clone())),
+                    _ => None,
+                })
+            })
+            .filter_map(|opt| match opt {
+                Some((name, version)) => match VersionReq::parse(version.trim_start_matches('v')) {
+                    Ok(vr) => Some(ComposerDependency {
+                        name: name,
+                        version_req: vr,
+                    }),
                     Err(err) => {
                         println!("{} ignored (could not parse {}: {:?})", name, version, err);
                         None
                     }
-                }
-            },
-            _ => None
-        }).collect()
+                },
+                _ => None,
+            })
+            .filter(|c| c.name != "php" && !c.name.starts_with("ext-"))
+            .collect())
     }
 
-    fn name(&self) -> &String {
+    fn name(&self) -> &str {
         &self.name
     }
 
@@ -79,14 +87,19 @@ impl Dependency for ComposerDependency {
         &self.version_req
     }
 
-    fn registry_version(&self) -> Option<Version> {
-        let client = Client::new();
-        let mut response = client.get(&*self.packagist_url()).send().unwrap();
-        let ref mut response_string = String::new();
-        response.read_to_string(response_string).unwrap();
-        match Json::from_str(response_string) {
-            Ok(version_struct) => self.packagist_version_from_json(&version_struct),
-            Err(_) => None,
-        }
+    async fn registry_version(&self) -> Option<Version> {
+        debug!("{} start", self.name);
+        Client::new()
+            .get(self.packagist_url())
+            .send()
+            .and_then(|resp| resp.json::<Value>())
+            .await
+            .map_or_else(
+                |e| {
+                    warn!("Could not fetch {}: {e}", self.name);
+                    None
+                },
+                |decoded| self.packagist_version_from_json(&decoded),
+            )
     }
 }
